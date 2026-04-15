@@ -62,3 +62,54 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 ---
 
 ## Project Structure
+
+evDOCTOR/
+│
+├── EV_DTC_Dataset.csv     # Fault dataset (codes, descriptions, fixes, keywords)
+├── app.py                 # Streamlit web app
+├── code.py                # CLI version
+├── requirements.txt       # Python dependencies
+└── README.md              # This file
+
+---
+
+## Built With
+
+| Tool | Purpose |
+|------|---------|
+| Python | Core language |
+| Pandas | Dataset handling |
+| Scikit-learn | TF-IDF + Naive Bayes model |
+| Streamlit | Web app framework |
+
+---
+
+## Roadmap
+
+- [ ] Add support for more EV brands and models
+- [ ] Improve model accuracy with a larger dataset
+- [ ] Add confidence scores to predictions
+- [ ] Support image/OBD scan input
+- [ ] Multi-language support
+
+---
+
+## Contributing
+
+Got more fault codes? Want to improve the model or the UI?
+Pull requests are welcome. Let's build the best free EV diagnostic tool out there.
+
+1. Fork the repo
+2. Create a branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push and open a Pull Request
+
+---
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+Made with by [Dhruv](https://github.com/1HPdhruv)
