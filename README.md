@@ -112,4 +112,4 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
-Made with by [Dhruv](https://github.com/1HPdhruv)
+Made by [Dhruv](https://github.com/1HPdhruv)
