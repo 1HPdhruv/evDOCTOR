@@ -58,7 +58,7 @@ tfidf = TfidfVectorizer(
 X_vec = tfidf.fit_transform(aug_X)
 
 # Train ensemble
-lr = LogisticRegression(max_iter=1000, C=5.0, solver="lbfgs", multi_class="multinomial")
+lr = LogisticRegression(max_iter=1000, C=5.0, solver="lbfgs")
 sgd = CalibratedClassifierCV(SGDClassifier(loss="modified_huber", max_iter=1000, random_state=42), cv=3)
 nb = MultinomialNB(alpha=0.5)
 
