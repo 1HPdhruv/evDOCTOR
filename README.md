@@ -1,115 +1,97 @@
-# evDOCTOR — EV Fault Predictor
+# evDOCTOR — AI-Powered EV Fault Diagnosis
 
-Live App: [https://ev-doctor.streamlit.app/](https://ev-doctor.streamlit.app/)
+A full-stack web application that diagnoses Electric Vehicle faults using an ensemble ML model. Users describe symptoms in plain English and receive instant, accurate diagnoses with confidence scores and step-by-step troubleshooting guides.
 
-> An AI-powered assistant that diagnoses electric vehicle faults from your symptoms — instantly.
+## Architecture
 
----
-
-## What is evDOCTOR?
-
-When your EV throws a warning or starts behaving oddly, figuring out what's wrong can be overwhelming.
-**evDOCTOR** takes the symptoms you describe in plain English and predicts the most likely fault,
-shows you the diagnostic trouble code (DTC), and tells you exactly how to fix it.
-
-No technical jargon. No guesswork. Just answers.
-
----
+| Layer | Tech | Hosting |
+|-------|------|---------|
+| Frontend | React + Vite | Netlify |
+| Backend | FastAPI (Python) | Render |
+| Database | SQLite (SQLAlchemy ORM) | Bundled with backend |
+| ML Model | Scikit-Learn Ensemble (LR + SGD + NB) | Trained at startup |
 
 ## Features
 
-- **AI-Powered Diagnosis** — Uses a Naive Bayes model trained on real EV diagnostic codes
-- **DTC Lookup** — Maps your symptoms to standard diagnostic trouble codes
-- **Fix Suggestions** — Gives you a clear, actionable solution for each fault
-- **Instant Results** — No sign-up, no waiting, just type and predict
-- **Runs in the Browser** — Built with Streamlit, works on any device
-
----
-
-## Try it Live
-
-[https://ev-doctor.streamlit.app/](https://ev-doctor.streamlit.app/)
-
-Type in symptoms like:
-- *"battery not charging, range dropped suddenly"*
-- *"motor making noise at high speed"*
-- *"regenerative braking not working"*
-
-evDOCTOR will predict the fault and tell you how to fix it.
-
----
-
-## Run It Locally
-
-### 1. Clone the repo
-```bash
-git clone https://github.com/1HPdhruv/evDOCTOR.git
-cd evDOCTOR
-```
-
-### 2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Launch the app
-```bash
-streamlit run app.py
-```
-
-Open [http://localhost:8501](http://localhost:8501) in your browser.
-
----
+- **Ensemble ML Model** — 3 classifiers (Logistic Regression, SGD, Naive Bayes) with weighted averaging
+- **Wrong Input Detection** — Keyword validation + confidence threshold rejects gibberish/unrelated text
+- **Temperature-Scaled Confidence** — Realistic, calibrated confidence scores
+- **127+ Fault Codes** across 16 EV subsystems
+- **Feedback System** — Users can rate diagnosis accuracy
+- **Search History** — Recent diagnoses displayed in a table
+- **Premium Dark UI** — Glassmorphism, animations, responsive design
 
 ## Project Structure
 
+```
 evDOCTOR/
-│
-├── EV_DTC_Dataset.csv     # Fault dataset (codes, descriptions, fixes, keywords)
-├── app.py                 # Streamlit web app
-├── code.py                # CLI version
-├── requirements.txt       # Python dependencies
-└── README.md              # This file
+├── backend/
+│   ├── main.py          # FastAPI app & API endpoints
+│   ├── database.py      # SQLAlchemy engine & session setup
+│   ├── models.py        # ORM models (FaultCode, SearchHistory, Feedback)
+│   ├── schemas.py       # Pydantic request/response validation
+│   ├── ml_engine.py     # Ensemble ML engine with OOD detection
+│   ├── init_db.py       # CSV → SQLite database seeder
+│   └── requirements.txt # Python dependencies
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx      # Main React component
+│   │   ├── App.css      # Premium styling
+│   │   └── index.css    # Base styles
+│   ├── netlify.toml     # Netlify deployment config
+│   └── .env             # API URL environment variable
+├── EV_DTC_Dataset.csv   # Master fault code dataset
+├── Procfile             # Render deployment config
+└── README.md
+```
 
----
+## Run Locally
 
-## Built With
+### Backend
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python init_db.py
+uvicorn main:app --reload --port 8000
+```
 
-| Tool | Purpose |
-|------|---------|
-| Python | Core language |
-| Pandas | Dataset handling |
-| Scikit-learn | TF-IDF + Naive Bayes model |
-| Streamlit | Web app framework |
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
----
+Frontend runs at `http://localhost:5173`, Backend at `http://localhost:8000`.
 
-## Roadmap
+## Deploy
 
-- [ ] Add support for more EV brands and models
-- [ ] Improve model accuracy with a larger dataset
-- [ ] Add confidence scores to predictions
-- [ ] Support image/OBD scan input
-- [ ] Multi-language support
+### Backend → Render
+1. Create a **Web Service** on Render
+2. Set **Root Directory** to `backend`
+3. Set **Build Command**: `pip install -r requirements.txt`
+4. Set **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Set env var `FRONTEND_URL` to your Netlify URL
 
----
+### Frontend → Netlify
+1. Connect your GitHub repo to Netlify
+2. Set **Base Directory** to `frontend`
+3. Set **Build Command**: `npm run build`
+4. Set **Publish Directory**: `frontend/dist`
+5. Set env var `VITE_API_URL` to `https://your-render-backend.onrender.com/api`
 
-## Contributing
+## DBMS Concepts Used
 
-Got more fault codes? Want to improve the model or the UI?
-Pull requests are welcome. Let's build the best free EV diagnostic tool out there.
+The database layer (`models.py`, `database.py`) demonstrates:
+- Primary Keys, Foreign Keys, Unique Constraints
+- CHECK Constraints, NOT NULL, Default Values
+- Indexes (single + composite), Relationships (1:N)
+- Cascade Delete, ON DELETE SET NULL
+- Session management, Connection pooling
+- Foreign key enforcement in SQLite via PRAGMA
 
-1. Fork the repo
-2. Create a branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add some feature'`)
-4. Push and open a Pull Request
+## Made by
 
----
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-Made by [Dhruv](https://github.com/1HPdhruv)
+[Dhruv](https://github.com/1HPdhruv)

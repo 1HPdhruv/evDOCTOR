@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: evdoctor-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    disk:
+      name: sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        value: sqlite:////var/data/evdoctor.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: "*" # Update this with your Netlify URL after deploying the frontend

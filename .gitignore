@@ -1,0 +1,20 @@
+# System
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+.env
+
+# Database and Model Caches
+*.db
+backend/evdoctor.db
+backend/model_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.env.local
