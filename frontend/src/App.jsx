@@ -37,6 +37,7 @@ export default function App() {
 
   // ── History ──
   const [history, setHistory] = useState([])
+  const [historyCollapsed, setHistoryCollapsed] = useState(false)
 
   // ── Autocomplete ──
   const [suggestions, setSuggestions] = useState([])
@@ -65,6 +66,15 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/history?limit=10`)
       if (res.ok) setHistory(await res.json())
+    } catch { /* ignore */ }
+  }
+
+  const handleDeleteHistory = async (id) => {
+    try {
+      const res = await apiFetch(`/history/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setHistory(prev => prev.filter(h => h.id !== id))
+      }
     } catch { /* ignore */ }
   }
 
@@ -324,24 +334,45 @@ export default function App() {
 
             {/* Recent Searches */}
             <div className="glass-card history-card">
-              <h3 className="section-title">Recent Searches</h3>
-              {history.length === 0 ? <p className="muted-text">No searches yet. Run a diagnosis to see history here.</p> : (
-                <div className="history-table-wrapper">
-                  <table className="history-table">
-                    <thead><tr><th>Symptom</th><th>Issue</th><th>Code</th><th>Confidence</th><th>Date</th></tr></thead>
-                    <tbody>
-                      {history.map((h) => (
-                        <tr key={h.id}>
-                          <td className="symptom-cell">{h.symptom_text?.substring(0, 45)}{h.symptom_text?.length > 45 ? '...' : ''}</td>
-                          <td>{h.predicted_issue || '—'}</td>
-                          <td><span className="dtc-code-sm">{h.predicted_code || '—'}</span></td>
-                          <td>{h.confidence ? `${Math.round(h.confidence * 100)}%` : '—'}</td>
-                          <td className="date-cell">{fmtDate(h.searched_at)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="history-header">
+                <h3 className="section-title">Recent Searches</h3>
+                <button 
+                  className="collapse-btn" 
+                  onClick={() => setHistoryCollapsed(!historyCollapsed)}
+                  title={historyCollapsed ? "Expand" : "Collapse"}
+                >
+                  {historyCollapsed ? "▼" : "▲"}
+                </button>
+              </div>
+              
+              {!historyCollapsed && (
+                history.length === 0 ? <p className="muted-text">No searches yet. Run a diagnosis to see history here.</p> : (
+                  <div className="history-table-wrapper">
+                    <table className="history-table">
+                      <thead><tr><th>Symptom</th><th>Issue</th><th>Code</th><th>Confidence</th><th>Date</th><th></th></tr></thead>
+                      <tbody>
+                        {history.map((h) => (
+                          <tr key={h.id}>
+                            <td className="symptom-cell">{h.symptom_text?.substring(0, 45)}{h.symptom_text?.length > 45 ? '...' : ''}</td>
+                            <td>{h.predicted_issue || '—'}</td>
+                            <td><span className="dtc-code-sm">{h.predicted_code || '—'}</span></td>
+                            <td>{h.confidence ? `${Math.round(h.confidence * 100)}%` : '—'}</td>
+                            <td className="date-cell">{fmtDate(h.searched_at)}</td>
+                            <td className="action-cell">
+                              <button 
+                                className="delete-history-btn" 
+                                onClick={() => handleDeleteHistory(h.id)}
+                                title="Remove search"
+                              >
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               )}
             </div>
 

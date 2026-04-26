@@ -190,6 +190,15 @@ def get_history(limit: int = Query(default=10, ge=1, le=50), db: Session = Depen
         .all()
     )
 
+@app.delete("/api/history/{search_id}")
+def delete_history(search_id: int, db: Session = Depends(get_db)):
+    search = db.query(models.SearchHistory).filter(models.SearchHistory.id == search_id).first()
+    if not search:
+        raise HTTPException(status_code=404, detail="Search not found")
+    db.delete(search)
+    db.commit()
+    return {"success": True, "message": "Search deleted successfully"}
+
 
 # ==========================================================================
 # OBD-II CODE LOOKUP
