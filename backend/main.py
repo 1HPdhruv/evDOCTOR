@@ -77,8 +77,17 @@ def startup_event():
     db = next(get_db())
     try:
         import threading
-        # Run ML training in background so it doesn't block server startup (prevents Gunicorn timeout)
-        threading.Thread(target=ml_engine.train, args=(db,)).start()
+        from database import SessionLocal
+        
+        def background_train():
+            bg_db = SessionLocal()
+            try:
+                ml_engine.train(bg_db)
+            finally:
+                bg_db.close()
+                
+        # Run ML training in background so it doesn't block server startup
+        threading.Thread(target=background_train).start()
         
         # Build autocomplete from training text
         faults = db.query(models.FaultCode).all()

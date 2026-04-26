@@ -37,6 +37,7 @@ class MLEngine:
         self.sgd = None
         self.nb = None
         self.is_trained = False
+        self.is_training = False
         self.confidence_threshold = 0.15
 
     # ── EV keyword set for OOD detection ──
@@ -140,52 +141,61 @@ class MLEngine:
             return False
 
     def train(self, db: Session):
-        faults = db.query(FaultCode).all()
-        if not faults:
-            print("[ML Engine] No data to train on.")
+        if self.is_training:
             return
+        self.is_training = True
+        try:
+            faults = db.query(FaultCode).all()
+            if not faults:
+                print("[ML Engine] No data to train on.")
+                return
 
-        # Try cache first
-        if self._load_cache(len(faults)):
-            return
+            # Try cache first
+            if self._load_cache(len(faults)):
+                return
 
-        random.seed(42); np.random.seed(42)
+            random.seed(42); np.random.seed(42)
 
-        aug_X, aug_y = [], []
-        for row in faults:
-            if not row.training_text:
-                continue
-            for variant in self.augment_text(row.training_text):
-                aug_X.append(variant)
-                aug_y.append(row.description)
+            aug_X, aug_y = [], []
+            for row in faults:
+                if not row.training_text:
+                    continue
+                for variant in self.augment_text(row.training_text):
+                    aug_X.append(variant)
+                    aug_y.append(row.description)
 
-        if not aug_X:
-            return
+            if not aug_X:
+                return
 
-        print(f"[ML Engine] Training on {len(aug_X)} samples ({len(faults)} fault codes)...")
+            print(f"[ML Engine] Training on {len(aug_X)} samples ({len(faults)} fault codes)...")
 
-        self.tfidf = TfidfVectorizer(
-            stop_words="english", ngram_range=(1, 2),
-            sublinear_tf=True, max_features=10000, min_df=1,
-        )
-        X_vec = self.tfidf.fit_transform(aug_X)
+            self.tfidf = TfidfVectorizer(
+                stop_words="english", ngram_range=(1, 2),
+                sublinear_tf=True, max_features=10000, min_df=1,
+            )
+            X_vec = self.tfidf.fit_transform(aug_X)
 
-        self.lr = LogisticRegression(max_iter=2000, C=5.0, solver="lbfgs")
-        self.lr.fit(X_vec, aug_y)
+            self.lr = LogisticRegression(max_iter=2000, C=5.0, solver="lbfgs")
+            self.lr.fit(X_vec, aug_y)
 
-        base_sgd = SGDClassifier(loss="modified_huber", max_iter=2000, random_state=42)
-        base_sgd.fit(X_vec, aug_y)
-        self.sgd = CalibratedClassifierCV(estimator=base_sgd, cv="prefit")
-        self.sgd.fit(X_vec, aug_y)
+            base_sgd = SGDClassifier(loss="modified_huber", max_iter=2000, random_state=42)
+            base_sgd.fit(X_vec, aug_y)
+            self.sgd = CalibratedClassifierCV(estimator=base_sgd, cv="prefit")
+            self.sgd.fit(X_vec, aug_y)
 
-        self.nb = MultinomialNB(alpha=0.3)
-        self.nb.fit(X_vec, aug_y)
+            self.nb = MultinomialNB(alpha=0.3)
+            self.nb.fit(X_vec, aug_y)
 
-        self.is_trained = True
-        print("[ML Engine] Training complete.")
-        self._save_cache(len(faults))
+            self.is_trained = True
+            print("[ML Engine] Training complete.")
+            self._save_cache(len(faults))
+        finally:
+            self.is_training = False
 
     def predict(self, symptom_text: str, db: Session, top_k: int = 3) -> dict:
+        if self.is_training:
+            return {"success": False, "message": "AI is currently warming up. Please try again in 30 seconds."}
+            
         if not self.is_trained:
             self.train(db)
             if not self.is_trained:
