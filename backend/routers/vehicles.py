@@ -26,6 +26,20 @@ class VehicleIn(BaseModel):
     year: int
     vin: Optional[str] = None
     nickname: Optional[str] = None
+    color: Optional[str] = None
+    mileage: Optional[int] = None
+    battery_health: Optional[int] = None
+    service_notes: Optional[str] = None
+    last_service_date: Optional[datetime] = None
+
+
+class VehiclePatch(BaseModel):
+    nickname: Optional[str] = None
+    color: Optional[str] = None
+    mileage: Optional[int] = None
+    battery_health: Optional[int] = None
+    service_notes: Optional[str] = None
+    last_service_date: Optional[datetime] = None
 
 
 class VehicleOut(BaseModel):
@@ -35,7 +49,13 @@ class VehicleOut(BaseModel):
     year: int
     vin: Optional[str]
     nickname: Optional[str]
+    color: Optional[str]
+    mileage: Optional[int]
+    battery_health: Optional[int]
+    service_notes: Optional[str]
+    last_service_date: Optional[datetime]
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -58,6 +78,27 @@ def add_vehicle(
     """Add a new vehicle to the user's garage."""
     vehicle = models.Vehicle(user_id=current_user.id, **data.model_dump())
     db.add(vehicle)
+    db.commit()
+    db.refresh(vehicle)
+    return vehicle
+
+
+@router.patch("/{vehicle_id}", response_model=VehicleOut)
+def update_vehicle(
+    vehicle_id: int,
+    data: VehiclePatch,
+    current_user: models.User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Update vehicle details (mileage, battery health, notes, etc.)."""
+    vehicle = db.query(models.Vehicle).filter(
+        models.Vehicle.id == vehicle_id,
+        models.Vehicle.user_id == current_user.id,
+    ).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(vehicle, field, value)
     db.commit()
     db.refresh(vehicle)
     return vehicle

@@ -5,11 +5,15 @@ import AuthModal from './components/AuthModal'
 import Dashboard from './pages/Dashboard'
 import Garage from './pages/Garage'
 import ShareView from './pages/ShareView'
+import ServiceMap from './components/ServiceMap'
+import Chatbot from './components/Chatbot'
 import { API_BASE_URL, apiFetch, getToken } from './api'
 import jsPDF from 'jspdf'
+import { useTranslation } from 'react-i18next'
 import './App.css'
 
 export default function App() {
+  const { t } = useTranslation()
   // ── Theme ──
   const [theme, setTheme] = useState(() => localStorage.getItem('ev_theme') || 'dark')
   useEffect(() => {
@@ -21,7 +25,11 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false)
 
   // ── Diagnosis state ──
-  const [symptom, setSymptom] = useState('')
+  const [symptom, setSymptom] = useState(() => {
+    // Support ?q= URL param from Garage "Diagnose" button
+    const params = new URLSearchParams(window.location.search)
+    return params.get('q') || ''
+  })
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
@@ -167,6 +175,30 @@ export default function App() {
     } catch { /* ignore */ }
   }
 
+  // ── Bookmark / Save Diagnosis ──
+  const [bookmarkSaved, setBookmarkSaved] = useState(false)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false)
+  const [bookmarkNote, setBookmarkNote] = useState('')
+
+  const handleSaveDiagnosis = async () => {
+    if (!searchId) return
+    setBookmarkLoading(true)
+    try {
+      const res = await apiFetch('/saved', {
+        method: 'POST',
+        body: JSON.stringify({ search_id: searchId, notes: bookmarkNote || null })
+      })
+      if (res.ok) {
+        setBookmarkSaved(true)
+        setShowBookmarkModal(false)
+        setBookmarkNote('')
+        setTimeout(() => setBookmarkSaved(false), 3000)
+      }
+    } catch { /* ignore */ }
+    finally { setBookmarkLoading(false) }
+  }
+
   // ── PDF Download ──
   const handlePDF = () => {
     if (!results?.length) return
@@ -213,8 +245,8 @@ export default function App() {
             {/* Hero */}
             <div className="hero-container">
               <div className="hero-badge">AI-Powered Diagnostics</div>
-              <h1 className="hero-title">evTROUBLESHOOTER</h1>
-              <p className="hero-subtitle">Describe your EV symptoms — get an instant AI diagnosis with step-by-step troubleshooting</p>
+              <h1 className="hero-title">{t('appTitle', 'evTROUBLESHOOTER')}</h1>
+              <p className="hero-subtitle">{t('heroSubtitle', 'Describe your EV symptoms — get an instant AI diagnosis with step-by-step troubleshooting')}</p>
             </div>
 
             {/* Input */}
@@ -223,7 +255,7 @@ export default function App() {
               <div className="input-row">
                 <textarea className="textarea-field" value={symptom}
                   onChange={(e) => handleSymptomChange(e.target.value)}
-                  placeholder="e.g. battery not charging, range dropped, motor making noise..."
+                  placeholder={t('placeholder', 'e.g. battery not charging, range dropped, motor making noise...')}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleDiagnose() } }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} />
                 <button className={`voice-btn ${listening ? 'listening' : ''}`} onClick={handleVoice} title="Voice input">
@@ -239,7 +271,7 @@ export default function App() {
               )}
               <div className="btn-wrapper">
                 <button className="btn-primary" onClick={handleDiagnose} disabled={loading}>
-                  {loading ? <><span className="scanner-ring"></span> Scanning...</> : ' Diagnose Now'}
+                  {loading ? <><span className="scanner-ring"></span> {t('scanning', 'Scanning...')}</> : `⚡ ${t('diagnoseBtn', 'Diagnose Now')}`}
                 </button>
               </div>
             </div>
@@ -259,9 +291,48 @@ export default function App() {
                     )}
                     <button className="btn-ghost-sm" onClick={handlePDF}>⬇ PDF</button>
                     {searchId && <button className="btn-ghost-sm" onClick={handleShare}>{shareCopied ? '✓ Copied!' : '🔗 Share'}</button>}
+                    {searchId && (
+                      <button
+                        className={`btn-ghost-sm ${bookmarkSaved ? 'bookmark-saved' : ''}`}
+                        onClick={() => setShowBookmarkModal(true)}
+                        disabled={bookmarkSaved}
+                      >
+                        {bookmarkSaved ? '🔖 Saved!' : '🔖 Save'}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {shareSlug && <div className="share-banner">Shareable link: <code>{shareSlug}</code></div>}
+
+                {/* Bookmark Modal */}
+                {showBookmarkModal && (
+                  <div className="modal-overlay" onClick={() => setShowBookmarkModal(false)}>
+                    <div className="modal-card" onClick={e => e.stopPropagation()}>
+                      <button className="modal-close" onClick={() => setShowBookmarkModal(false)}>×</button>
+                      <h3 className="modal-title">🔖 Save Diagnosis</h3>
+                      <p style={{ color: 'var(--txt2)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                        Save this diagnosis to <strong>My Garage → Saved Diagnoses</strong> for future reference.
+                      </p>
+                      <textarea
+                        className="feedback-comment"
+                        placeholder="Add a note (optional) — e.g. 'Happened after rain', 'Fixed by dealer'"
+                        value={bookmarkNote}
+                        onChange={e => setBookmarkNote(e.target.value)}
+                        rows={3}
+                        style={{ marginBottom: '1rem' }}
+                      />
+                      <button
+                        className="btn-primary"
+                        style={{ maxWidth: '100%' }}
+                        onClick={handleSaveDiagnosis}
+                        disabled={bookmarkLoading}
+                      >
+                        {bookmarkLoading ? 'Saving...' : '🔖 Save to My Garage'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
 
                 {/* Expert Mode Panel */}
                 {showExpert && expertBreakdown && (
@@ -313,6 +384,9 @@ export default function App() {
                   )
                 })}
 
+                {/* Map Integration */}
+                <ServiceMap />
+
                 {/* Feedback */}
                 <div className="glass-card feedback-card">
                   <h3 className="feedback-title">Was this diagnosis helpful?</h3>
@@ -335,7 +409,7 @@ export default function App() {
             {/* Recent Searches */}
             <div className="glass-card history-card">
               <div className="history-header">
-                <h3 className="section-title">Recent Searches</h3>
+                <h3 className="section-title">{t('recentSearches', 'Recent Searches')}</h3>
                 <button 
                   className="collapse-btn" 
                   onClick={() => setHistoryCollapsed(!historyCollapsed)}
@@ -346,10 +420,10 @@ export default function App() {
               </div>
               
               {!historyCollapsed && (
-                history.length === 0 ? <p className="muted-text">No searches yet. Run a diagnosis to see history here.</p> : (
+                history.length === 0 ? <p className="muted-text">{t('noSearches', 'No searches yet. Run a diagnosis to see history here.')}</p> : (
                   <div className="history-table-wrapper">
                     <table className="history-table">
-                      <thead><tr><th>Symptom</th><th>Issue</th><th>Code</th><th>Confidence</th><th>Date</th><th></th></tr></thead>
+                      <thead><tr><th>{t('symptom', 'Symptom')}</th><th>{t('issue', 'Issue')}</th><th>{t('code', 'Code')}</th><th>{t('confidence', 'Confidence')}</th><th>{t('date', 'Date')}</th><th></th></tr></thead>
                       <tbody>
                         {history.map((h) => (
                           <tr key={h.id}>
@@ -384,6 +458,7 @@ export default function App() {
           </div>
         } />
       </Routes>
+      <Chatbot />
     </>
   )
 }

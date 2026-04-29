@@ -91,14 +91,17 @@ class Vehicle(Base):
     year       = Column(Integer,    nullable=False)    # e.g. 2022
     vin        = Column(String(17), nullable=True)     # Vehicle Identification Number
     nickname   = Column(String(60), nullable=True)     # user-defined label
+    color      = Column(String(30), nullable=True)     # e.g. Pearl White
+    mileage    = Column(Integer, nullable=True)        # current odometer in km
+    battery_health = Column(Integer, nullable=True)   # SOH % (0-100)
+    service_notes = Column(Text, nullable=True)       # free-text service log
+    last_service_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now, nullable=False)
 
     user = relationship("User", back_populates="vehicles")
 
     __table_args__ = (
-        # DBMS: Composite Index — fast lookup of all vehicles for a user
         Index("ix_vehicle_user_make_model", "user_id", "make", "model"),
-        # DBMS: CHECK — year must be reasonable
         CheckConstraint("year >= 2000 AND year <= 2035", name="ck_vehicle_year"),
     )
 
