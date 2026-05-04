@@ -17,7 +17,11 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
+from dotenv import load_dotenv  
+load_dotenv()                   
 
+from sqlalchemy import create_engine, event
+...
 # ---------------------------------------------------------------------------
 # DATABASE URL CONFIGURATION
 # ---------------------------------------------------------------------------
