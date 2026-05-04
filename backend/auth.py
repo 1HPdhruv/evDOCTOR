@@ -11,6 +11,7 @@
 import os
 import hashlib
 import secrets as _secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -59,12 +60,12 @@ class RegisterRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user_id: int
+    user_id: uuid.UUID          # ← was int, now UUID
     email: str
     full_name: Optional[str]
 
 class UserOut(BaseModel):
-    id: int
+    id: uuid.UUID               # ← was int, now UUID
     email: str
     full_name: Optional[str]
     created_at: datetime
@@ -124,7 +125,12 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     token = create_access_token({"sub": user.email})
-    return LoginResponse(access_token=token, user_id=user.id, email=user.email, full_name=user.full_name)
+    return LoginResponse(
+        access_token=token,
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -134,7 +140,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token({"sub": user.email})
-    return LoginResponse(access_token=token, user_id=user.id, email=user.email, full_name=user.full_name)
+    return LoginResponse(
+        access_token=token,
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+    )
 
 
 @router.get("/me", response_model=UserOut)
