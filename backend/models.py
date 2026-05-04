@@ -16,9 +16,11 @@ from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text, DateTime,
     ForeignKey, CheckConstraint, Index, UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from database import Base
+import uuid
 
 
 def _now():
@@ -57,12 +59,12 @@ class FaultCode(Base):
 
 # ==========================================================================
 # TABLE 2: User  (auth table)
-# DBMS: Unique on email, NOT NULL on password_hash, Default on created_at
+# DBMS: UUID PK to match Supabase, Unique on email, Default on created_at
 # ==========================================================================
 class User(Base):
     __tablename__ = "users"
 
-    id            = Column(Integer, primary_key=True, autoincrement=True)
+    id            = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email         = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     full_name     = Column(String(120), nullable=True)
@@ -70,7 +72,7 @@ class User(Base):
     is_active     = Column(Boolean, default=True, nullable=False)
 
     # DBMS: 1:N Relationships (parent → children)
-    vehicles       = relationship("Vehicle", back_populates="user", cascade="all, delete-orphan")
+    vehicles        = relationship("Vehicle", back_populates="user", cascade="all, delete-orphan")
     saved_diagnoses = relationship("SavedDiagnosis", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -85,16 +87,16 @@ class Vehicle(Base):
     __tablename__ = "vehicles"
 
     id         = Column(Integer, primary_key=True, autoincrement=True)
-    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    make       = Column(String(60), nullable=False)    # e.g. Tesla
-    model      = Column(String(60), nullable=False)    # e.g. Model 3
-    year       = Column(Integer,    nullable=False)    # e.g. 2022
-    vin        = Column(String(17), nullable=True)     # Vehicle Identification Number
-    nickname   = Column(String(60), nullable=True)     # user-defined label
-    color      = Column(String(30), nullable=True)     # e.g. Pearl White
-    mileage    = Column(Integer, nullable=True)        # current odometer in km
-    battery_health = Column(Integer, nullable=True)   # SOH % (0-100)
-    service_notes = Column(Text, nullable=True)       # free-text service log
+    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    make       = Column(String(60), nullable=False)
+    model      = Column(String(60), nullable=False)
+    year       = Column(Integer,    nullable=False)
+    vin        = Column(String(17), nullable=True)
+    nickname   = Column(String(60), nullable=True)
+    color      = Column(String(30), nullable=True)
+    mileage    = Column(Integer, nullable=True)
+    battery_health = Column(Integer, nullable=True)
+    service_notes  = Column(Text, nullable=True)
     last_service_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now, nullable=False)
 
@@ -119,16 +121,15 @@ class SearchHistory(Base):
     id              = Column(Integer, primary_key=True, autoincrement=True)
     symptom_text    = Column(Text, nullable=False, index=True)
     fault_id        = Column(Integer, ForeignKey("fault_codes.id", ondelete="SET NULL"), nullable=True)
-    user_id         = Column(Integer, ForeignKey("users.id",  ondelete="SET NULL"), nullable=True)
+    user_id         = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     predicted_issue = Column(String(200), nullable=True)
     predicted_code  = Column(String(10),  nullable=True)
     confidence      = Column(Float,  nullable=True)
-    # Expert mode: per-model breakdown stored as JSON string
     model_breakdown = Column(Text, nullable=True)
     searched_at     = Column(DateTime, default=_now, nullable=False, index=True)
 
     # DBMS: Relationships
-    fault    = relationship("FaultCode", back_populates="searches")
+    fault     = relationship("FaultCode", back_populates="searches")
     feedbacks = relationship("Feedback", back_populates="search", cascade="all, delete-orphan")
     saved     = relationship("SavedDiagnosis", back_populates="search", cascade="all, delete-orphan")
     share     = relationship("DiagnosisShare", back_populates="search", uselist=False, cascade="all, delete-orphan")
@@ -170,17 +171,16 @@ class Feedback(Base):
 class SavedDiagnosis(Base):
     __tablename__ = "saved_diagnoses"
 
-    id         = Column(Integer, primary_key=True, autoincrement=True)
-    user_id    = Column(Integer, ForeignKey("users.id",          ondelete="CASCADE"), nullable=False)
-    search_id  = Column(Integer, ForeignKey("search_history.id", ondelete="CASCADE"), nullable=False)
-    notes      = Column(Text, nullable=True)
-    saved_at   = Column(DateTime, default=_now, nullable=False)
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    user_id   = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    search_id = Column(Integer, ForeignKey("search_history.id", ondelete="CASCADE"), nullable=False)
+    notes     = Column(Text, nullable=True)
+    saved_at  = Column(DateTime, default=_now, nullable=False)
 
     user   = relationship("User",          back_populates="saved_diagnoses")
     search = relationship("SearchHistory", back_populates="saved")
 
     __table_args__ = (
-        # DBMS: Unique Constraint — no duplicate bookmarks
         UniqueConstraint("user_id", "search_id", name="uq_saved_user_search"),
     )
 
@@ -195,11 +195,11 @@ class SavedDiagnosis(Base):
 class ActiveLearningQueue(Base):
     __tablename__ = "active_learning_queue"
 
-    id           = Column(Integer, primary_key=True, autoincrement=True)
-    symptom_text = Column(Text, nullable=False)
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    symptom_text     = Column(Text, nullable=False)
     feedback_comment = Column(Text, nullable=True)
-    rejected_at  = Column(DateTime, default=_now, nullable=False, index=True)
-    processed    = Column(Boolean, default=False, nullable=False)  # True after retraining
+    rejected_at      = Column(DateTime, default=_now, nullable=False, index=True)
+    processed        = Column(Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return f"<ActiveLearningQueue id={self.id} processed={self.processed}>"
@@ -212,11 +212,11 @@ class ActiveLearningQueue(Base):
 class DiagnosisShare(Base):
     __tablename__ = "diagnosis_shares"
 
-    id          = Column(Integer, primary_key=True, autoincrement=True)
-    slug        = Column(String(16), unique=True, nullable=False, index=True)
-    search_id   = Column(Integer, ForeignKey("search_history.id", ondelete="CASCADE"), nullable=False)
-    fault_code_id = Column(Integer, ForeignKey("fault_codes.id",  ondelete="SET NULL"), nullable=True)
-    created_at  = Column(DateTime, default=_now, nullable=False)
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    slug          = Column(String(16), unique=True, nullable=False, index=True)
+    search_id     = Column(Integer, ForeignKey("search_history.id", ondelete="CASCADE"), nullable=False)
+    fault_code_id = Column(Integer, ForeignKey("fault_codes.id", ondelete="SET NULL"), nullable=True)
+    created_at    = Column(DateTime, default=_now, nullable=False)
 
     search     = relationship("SearchHistory", back_populates="share")
     fault_code = relationship("FaultCode",     back_populates="shares")
