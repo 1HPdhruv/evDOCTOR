@@ -17,11 +17,10 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
-from dotenv import load_dotenv  
-load_dotenv(override=False)                    
+from dotenv import load_dotenv
 
-from sqlalchemy import create_engine, event
-...
+load_dotenv(override=False)
+
 # ---------------------------------------------------------------------------
 # DATABASE URL CONFIGURATION
 # ---------------------------------------------------------------------------
@@ -56,7 +55,7 @@ if "sqlite" in DATABASE_URL:
 engine = create_engine(
     DATABASE_URL,
     connect_args=connect_args,
-    pool_pre_ping=True,  # DBMS Concept: Connection health check before use
+    pool_pre_ping=True,
 )
 
 # ---------------------------------------------------------------------------
